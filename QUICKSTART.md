@@ -1,23 +1,38 @@
-# 🏎️ F1 Race Strategy Analyzer - Quick Start Guide
+# Quick Start Guide
 
-Get up and running with the F1 Race Strategy Analyzer in 15 minutes!
+Get up and running with the F1 Knowledge Base in 5 minutes.
 
-## Prerequisites
-
-- Python 3.9 or higher
-- pip (Python package manager)
-- Git (optional, for cloning)
-- API Keys:
-  - [Pinecone](https://www.pinecone.io/) - Vector database (free tier available)
-  - [Anthropic](https://console.anthropic.com/) - Claude AI (pay-per-use)
-
-## 🚀 Option 1: Local Development (Recommended for Learning)
-
-### Step 1: Setup Environment
+## 1. Prerequisites
 
 ```bash
-# Create project directory
-cd f1-race-analyzer
+# Check Python version (requires 3.9+)
+python --version
+
+# Install pip if needed
+python -m ensurepip --upgrade
+```
+
+## 2. Get API Keys
+
+### Pinecone (Vector Database)
+1. Go to [pinecone.io](https://www.pinecone.io/)
+2. Sign up for free account
+3. Create new project
+4. Copy API key from dashboard
+
+### OpenAI (Embeddings)
+1. Go to [platform.openai.com](https://platform.openai.com/)
+2. Sign up or log in
+3. Go to API keys section
+4. Create new API key
+5. Copy the key (shown only once!)
+
+## 3. Install
+
+```bash
+# Clone repository
+git clone <your-repo-url>
+cd BuildWatch
 
 # Create virtual environment
 python -m venv venv
@@ -26,336 +41,142 @@ python -m venv venv
 # On macOS/Linux:
 source venv/bin/activate
 # On Windows:
-# venv\Scripts\activate
+venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### Step 2: Configure API Keys
+## 4. Configure
 
 ```bash
-# Copy the example environment file
+# Copy environment template
 cp .env.example .env
 
-# Edit .env and add your API keys
-# PINECONE_API_KEY=your_key_here
-# ANTHROPIC_API_KEY=your_key_here
+# Edit .env file with your API keys
+# Use nano, vim, or your preferred editor
+nano .env
 ```
 
-### Step 3: Initialize the System
-
-```python
-# Run this Python script to initialize
-python << 'EOF'
-import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-
-# Initialize vector database
-from vector_database import F1VectorDatabase
-vdb = F1VectorDatabase()
-vdb.create_index()
-print("✅ Vector database initialized")
-
-# Collect sample data
-from data_collection import F1DataCollector
-collector = F1DataCollector(use_fastf1=False)
-
-# Get 2024 season schedule
-schedule = collector.ergast.get_season_schedule(2024)
-print(f"✅ Found {len(schedule)} races in 2024 season")
-
-# Collect one race as sample
-if schedule:
-    race_data = collector.collect_race_data(2024, 1)
-    print(f"✅ Collected data for: {race_data.race_name}")
-
-print("\n🎉 System initialized successfully!")
-EOF
-```
-
-### Step 4: Start the API Server
-
+Add your keys to `.env`:
 ```bash
-# Start the FastAPI server
-python fastapi_backend.py
-```
-
-Visit http://localhost:8000/docs for interactive API documentation!
-
-### Step 5: Try It Out!
-
-```bash
-# Generate a race strategy
-curl -X POST http://localhost:8000/strategy/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "race_info": {
-      "circuit": "monaco",
-      "weather_forecast": "Dry, 24C",
-      "total_laps": 78,
-      "driver": "Max Verstappen",
-      "grid_position": 1
-    }
-  }'
-
-# Search historical strategies
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "Best tire strategy for Monaco wet conditions",
-    "top_k": 5
-  }'
-```
-
----
-
-## 🐳 Option 2: Docker (Fastest Setup)
-
-### Step 1: Configure Environment
-
-```bash
-# Create .env file
-cat > .env << EOF
 PINECONE_API_KEY=your_pinecone_key_here
-ANTHROPIC_API_KEY=your_anthropic_key_here
-EOF
+OPENAI_API_KEY=your_openai_key_here
+START_YEAR=2017
 ```
 
-### Step 2: Start Services
+## 5. Build Knowledge Base
 
 ```bash
-# Build and start the API
-docker-compose up -d api
-
-# Check logs
-docker-compose logs -f api
-
-# Verify it's running
-curl http://localhost:8000/health
+cd src
+python knowledge_base_builder.py
 ```
 
-### Step 3: (Optional) Run Training
+This will:
+- Download F1 race data from 2017-present (~2-4 hours)
+- Generate embeddings
+- Create vector database
+
+**Coffee break recommended!** ☕
+
+## 6. Test Strategy Prediction
 
 ```bash
-# Quick training (5-10 minutes)
-docker-compose --profile training-quick up trainer-quick
-
-# Full training (30-60 minutes)
-docker-compose --profile training up trainer
+cd src
+python strategy_predictor.py
 ```
 
----
+You should see strategy recommendations for Monza.
 
-## 🧪 Quick Test
-
-Run this Python script to test all components:
-
-```python
-# test_setup.py
-import os
-from dotenv import load_dotenv
-load_dotenv()
-
-print("🧪 Testing F1 Race Strategy Analyzer Setup\n")
-
-# Test 1: Data Collection
-print("1️⃣ Testing Data Collection...")
-try:
-    from data_collection import F1DataCollector
-    collector = F1DataCollector(use_fastf1=False)
-    schedule = collector.ergast.get_season_schedule(2024)
-    print(f"   ✅ Data collection works! Found {len(schedule)} races\n")
-except Exception as e:
-    print(f"   ❌ Data collection failed: {e}\n")
-
-# Test 2: Feature Engineering
-print("2️⃣ Testing Feature Engineering...")
-try:
-    from feature_engineering import F1FeatureEngineer
-    engineer = F1FeatureEngineer()
-    print("   ✅ Feature engineering works!\n")
-except Exception as e:
-    print(f"   ❌ Feature engineering failed: {e}\n")
-
-# Test 3: TensorFlow Models
-print("3️⃣ Testing TensorFlow Models...")
-try:
-    from tensorflow_models import RaceOutcomePredictor, PitStopOptimizer
-    predictor = RaceOutcomePredictor()
-    predictor.build_model()
-    optimizer = PitStopOptimizer()
-    print("   ✅ TensorFlow models work!\n")
-except Exception as e:
-    print(f"   ❌ TensorFlow models failed: {e}\n")
-
-# Test 4: Vector Database
-print("4️⃣ Testing Vector Database...")
-try:
-    from vector_database import F1VectorDatabase
-    vdb = F1VectorDatabase()
-    vdb.create_index()
-    stats = vdb.get_index_stats()
-    print(f"   ✅ Vector database works! Vectors: {stats.get('total_vectors', 0)}\n")
-except Exception as e:
-    print(f"   ❌ Vector database failed: {e}\n")
-
-# Test 5: Strategy Generator
-print("5️⃣ Testing Strategy Generator...")
-try:
-    from llm_strategy_generator import F1StrategyGenerator
-    generator = F1StrategyGenerator()
-    print("   ✅ Strategy generator initialized!\n")
-except Exception as e:
-    print(f"   ❌ Strategy generator failed: {e}\n")
-
-print("🏁 Setup test complete!")
-```
-
----
-
-## 📊 Training Models
-
-Train all ML models on historical data:
+## 7. Run Race Simulation
 
 ```bash
-# Quick training (for testing, ~5 minutes)
-python train_models.py --quick
-
-# Full training (~30-60 minutes)
-python train_models.py --start-year 2015 --end-year 2024 --epochs 100
-
-# Training with vector database initialization
-python train_models.py --quick --init-vectordb
+cd src
+python race_simulator.py
 ```
 
----
+Watch a simulated race unfold lap-by-lap!
 
-## 🎯 Example Usage
+## Quick Examples
 
-### Generate a Race Strategy
+### Predict Strategy
 
 ```python
-from llm_strategy_generator import F1StrategyGenerator, StrategyRequest
-import os
-from dotenv import load_dotenv
-load_dotenv()
+from src.strategy_predictor import F1StrategyPredictor, SessionData
 
-generator = F1StrategyGenerator()
+predictor = F1StrategyPredictor()
 
-race_info = {
-    'circuit': 'Silverstone',
-    'weather_forecast': 'Dry, 22°C, 30% chance of rain',
-    'total_laps': 52,
-    'driver': 'Lewis Hamilton',
-    'constructor': 'Mercedes',
-    'grid_position': 3
-}
+session = SessionData(
+    circuit="Spa",
+    session_type="Race",
+    lap_number=1,
+    total_laps=44,
+    air_temp=20.0,
+    track_temp=28.0,
+    weather="Dry",
+    available_compounds=["SOFT", "MEDIUM", "HARD"]
+)
 
-strategy = generator.generate_race_strategy(race_info)
-
-print("📋 Executive Summary:")
-print(strategy.executive_summary)
-
-print("\n🎯 Recommended Strategy:")
-print(strategy.recommended_strategy)
+recommendation = predictor.predict_optimal_strategy(session)
+print(f"Strategy: {recommendation.strategy_type}")
 ```
 
-### Search Historical Strategies
+### Search Similar Races
 
 ```python
-from vector_database import F1VectorDatabase
+from src.vector_db import F1VectorDB
 
-db = F1VectorDatabase()
-db.create_index()
+vdb = F1VectorDB()
 
-results = db.search_similar_strategies(
-    query="Wet weather strategy for Spa with safety car",
+results = vdb.search_similar_races(
+    query="High-speed circuit dry conditions",
     top_k=5
 )
 
-for result in results:
-    print(f"- {result['metadata'].get('race_name')}: Score {result['score']:.2f}")
+for r in results:
+    print(f"{r['metadata']['race_name']} - Score: {r['score']:.3f}")
 ```
 
-### Get ML Predictions
+## Troubleshooting
 
-```python
-import numpy as np
-from tensorflow_models import RaceOutcomePredictor
+### "Pinecone API key not found"
+- Check `.env` file exists
+- Verify API key is correct
+- Try `source .env` before running
 
-# Load trained model
-predictor = RaceOutcomePredictor()
-predictor.load_model('models/race_predictor.keras')
+### "FastF1 download failed"
+- Check internet connection
+- Some races may have limited data
+- Script will continue with available data
 
-# Sample input (your actual feature data)
-race_sequence = np.random.randn(1, 10, 30)
+### "Out of memory"
+- Reduce `START_YEAR` in `.env` (e.g., 2020)
+- Process fewer years at once
+- Increase system swap space
 
-# Predict
-position, probabilities = predictor.predict_position(race_sequence)
-print(f"Predicted position: P{position}")
-print(f"Top 3 probability: {probabilities[:3].sum():.1%}")
-```
+### "OpenAI rate limit"
+- Free tier has limits
+- Script will retry automatically
+- Consider upgrading plan for faster processing
 
----
+## Next Steps
 
-## 🔧 Troubleshooting
+1. Read full [README.md](README.md) for detailed documentation
+2. Explore the code in `src/` directory
+3. Customize for your use case
+4. Build integrations (APIs, dashboards, etc.)
 
-### Common Issues
+## Tips
 
-**1. "Module not found" errors**
-```bash
-# Ensure you're in the virtual environment
-source venv/bin/activate  # or venv\Scripts\activate on Windows
+- Start with recent years (2020+) for faster initial build
+- Use `skip_ingestion=True` to collect data without vector DB
+- Cache is stored in `cache/` - don't delete during builds
+- Check `logs/` for detailed progress
 
-# Reinstall dependencies
-pip install -r requirements.txt
-```
+## Getting Help
 
-**2. API key errors**
-```bash
-# Verify your .env file exists and has correct keys
-cat .env
+- Check documentation in [README.md](README.md)
+- Review code comments in source files
+- Open issue on GitHub
 
-# Test the keys
-python -c "import os; from dotenv import load_dotenv; load_dotenv(); print('Pinecone:', 'SET' if os.getenv('PINECONE_API_KEY') else 'MISSING')"
-```
-
-**3. TensorFlow GPU issues**
-```bash
-# Use CPU-only TensorFlow if GPU causes issues
-pip uninstall tensorflow
-pip install tensorflow-cpu
-```
-
-**4. Docker issues**
-```bash
-# Rebuild containers
-docker-compose build --no-cache
-
-# Check logs
-docker-compose logs api
-```
-
----
-
-## 📚 Next Steps
-
-1. **Explore the API**: Visit http://localhost:8000/docs
-2. **Train models**: Run `python train_models.py`
-3. **Read the full docs**: See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)
-4. **Customize**: Modify prompts in `llm_strategy_generator.py`
-5. **Add data**: Collect more seasons with `data_collection.py`
-
----
-
-## 🆘 Getting Help
-
-- Check the [README.md](./README.md) for full documentation
-- Open an issue on GitHub
-- Review the code comments in each module
-
-Happy racing! 🏎️
+Happy racing! 🏎️💨
