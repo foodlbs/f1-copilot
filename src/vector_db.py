@@ -211,8 +211,13 @@ class F1VectorDB:
             # Get winner's strategy
             winner_strat = next((s for s in strategies if s['driver'] == winner.get('driver_code')), None)
             if winner_strat:
-                compounds = ' → '.join([stint['compound'] for stint in winner_strat['stints']])
-                parts.append(f"Winning strategy: {winner_strat['total_stops']} stop(s), {compounds}")
+                # Handle both API format (with stints) and CSV format (without stints)
+                if 'stints' in winner_strat and winner_strat['stints']:
+                    compounds = ' → '.join([stint['compound'] for stint in winner_strat['stints']])
+                    parts.append(f"Winning strategy: {winner_strat['total_stops']} stop(s), {compounds}")
+                else:
+                    # CSV format - just show number of stops
+                    parts.append(f"Winning strategy: {winner_strat['total_stops']} stop(s)")
 
         # Pit stops
         if race_data.get('pit_stops'):
@@ -253,11 +258,17 @@ class F1VectorDB:
         # Strategy details
         parts.append(f"Strategy: {driver_strategy['total_stops']} stop(s)")
 
-        for i, stint in enumerate(driver_strategy['stints'], 1):
-            parts.append(
-                f"Stint {i}: {stint['compound']} compound, "
-                f"Laps {stint['start_lap']}-{stint['end_lap']} ({stint['stint_length']} laps)"
-            )
+        # Handle both API format (with stints) and CSV format (with stop_laps)
+        if 'stints' in driver_strategy and driver_strategy['stints']:
+            for i, stint in enumerate(driver_strategy['stints'], 1):
+                parts.append(
+                    f"Stint {i}: {stint['compound']} compound, "
+                    f"Laps {stint['start_lap']}-{stint['end_lap']} ({stint['stint_length']} laps)"
+                )
+        elif 'stop_laps' in driver_strategy and driver_strategy['stop_laps']:
+            # CSV format - just show stop laps
+            stop_laps_str = ', '.join([f"Lap {lap}" for lap in driver_strategy['stop_laps']])
+            parts.append(f"Pit stops at: {stop_laps_str}")
 
         # Get driver's result
         if race_data.get('race_results'):
