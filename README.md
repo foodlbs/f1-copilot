@@ -89,7 +89,6 @@ Then start the RAG system as shown in Option A.
     │
     ├── services/                 # Microservices
     │   ├── rag-service/          # LangChain RAG service
-    │   ├── ingestion-service/    # Document processing
     │   ├── kong/                 # API Gateway
     │   └── frontend/             # Next.js UI
     │
@@ -167,23 +166,14 @@ Then start the RAG system as shown in Option A.
    - "Which drivers offer the best value this weekend?"
    - "Red Bull's historical performance at Spa?"
 
-### Use Case 3: Your Own Documents
+### Use Case 3: Load Custom Data
 
-Skip F1 data loading entirely and use with your own documents:
+You can extend the data-loading scripts to ingest your own documents:
 
-1. Start RAG system:
-   ```bash
-   cd rag-microservices
-   ./scripts/start.sh
-   ```
-
-2. Upload documents via API:
-   ```bash
-   curl -X POST http://localhost:8000/api/ingest/pdf \
-     -F "file=@your-document.pdf"
-   ```
-
-3. Chat with your documents!
+1. Add your custom data loader in `data-loading/src/`
+2. Follow the pattern in `csv_data_ingestion.py`
+3. Run your custom loader to populate Pinecone
+4. Start the RAG system and chat with your data!
 
 ## 📊 Technology Stack
 
@@ -224,7 +214,6 @@ Once running, access these services:
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
 - **Kong Gateway**: [http://localhost:8000](http://localhost:8000)
 - **RAG Service**: [http://localhost:8001/health](http://localhost:8001/health)
-- **Ingestion Service**: [http://localhost:8002/health](http://localhost:8002/health)
 
 ## 🎨 Retrieval Strategies
 
@@ -272,24 +261,34 @@ See [DEPLOYMENT.md](rag-microservices/docs/DEPLOYMENT.md) for details.
        │
        ↓
 ┌─────────────┐
+│  Frontend   │  ← Next.js UI
+│   :3000     │
+└──────┬──────┘
+       │
+       ↓
+┌─────────────┐
 │    Kong     │  ← API Gateway
 │   :8000     │
 └──────┬──────┘
        │
-   ┌───┴────┐
-   ↓        ↓
-┌──────┐ ┌─────────┐
-│ RAG  │ │Ingestion│
-│:8001 │ │  :8002  │
-└───┬──┘ └────┬────┘
-    │         │
-    └────┬────┘
-         ↓
-   ┌──────────┐
-   │ Pinecone │  ← Vector DB (your F1 data)
-   │  Ollama  │  ← Local LLM
-   │  Redis   │  ← Conversation memory
-   └──────────┘
+       ↓
+   ┌──────┐
+   │ RAG  │  ← LangChain Service
+   │:8001 │
+   └───┬──┘
+       │
+   ┌───┴──────────┐
+   ↓              ↓
+┌──────────┐  ┌─────────┐
+│ Pinecone │  │ Ollama  │  ← Infrastructure
+│  Vector  │  │ + Redis │     (Data + AI)
+│   DB     │  │         │
+└──────────┘  └─────────┘
+       ↑
+       │
+   [Offline Data Loading]
+   data-loading/ scripts
+   populate Pinecone
 ```
 
 ## 🛠️ Development

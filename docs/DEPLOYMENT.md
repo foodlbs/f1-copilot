@@ -128,17 +128,6 @@ services:
     networks:
       - rag-network
 
-  ingestion-service:
-    build:
-      context: ./services/ingestion-service
-      dockerfile: Dockerfile
-    environment:
-      - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_INDEX=${PINECONE_INDEX}
-    restart: always
-    networks:
-      - rag-network
-
   kong:
     build:
       context: ./services/kong
@@ -422,7 +411,6 @@ All services have health endpoints:
 
 ```bash
 curl http://localhost:8001/health
-curl http://localhost:8002/health
 ```
 
 Set up external monitoring (UptimeRobot, Pingdom, etc.)

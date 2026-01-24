@@ -19,23 +19,6 @@ upstreams:
       - target: rag-service:8001
         weight: 100
 
-  - name: ingestion-service-upstream
-    algorithm: round-robin
-    healthchecks:
-      active:
-        type: http
-        http_path: /health
-        timeout: 5
-        healthy:
-          interval: 10
-          successes: 2
-        unhealthy:
-          interval: 10
-          http_failures: 3
-    targets:
-      - target: ingestion-service:8002
-        weight: 100
-
 # ==================== SERVICES ====================
 services:
   # ========== RAG Service ==========
@@ -114,77 +97,6 @@ services:
           add:
             headers:
               - "X-Service:RAG-Service"
-
-      - name: prometheus
-        config:
-          per_consumer: true
-
-  # ========== Ingestion Service ==========
-  - name: ingestion-service
-    host: ingestion-service-upstream
-    port: 8002
-    protocol: http
-    connect_timeout: 300000
-    write_timeout: 300000
-    read_timeout: 300000
-    retries: 1
-
-    routes:
-      - name: ingest-route
-        paths:
-          - /api/ingest
-        methods:
-          - POST
-          - OPTIONS
-        strip_path: false
-
-      - name: ingest-pdf-route
-        paths:
-          - /api/ingest/pdf
-        methods:
-          - POST
-          - OPTIONS
-        strip_path: false
-
-      - name: ingest-text-route
-        paths:
-          - /api/ingest/text-file
-        methods:
-          - POST
-          - OPTIONS
-        strip_path: false
-
-      - name: stats-route
-        paths:
-          - /api/stats
-        methods:
-          - GET
-          - OPTIONS
-        strip_path: false
-
-    plugins:
-      - name: rate-limiting
-        config:
-          minute: 30
-          hour: 500
-          policy: local
-
-      - name: cors
-        config:
-          origins:
-            - "*"
-          methods:
-            - GET
-            - POST
-            - OPTIONS
-          headers:
-            - "*"
-          credentials: true
-
-      - name: request-size-limiting
-        config:
-          allowed_payload_size: 50
-          size_unit: megabytes
 
       - name: prometheus
         config:

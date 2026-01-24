@@ -105,7 +105,6 @@ python ingest_fantasy_data.py
 | Frontend | http://localhost:3000 | Chat interface |
 | Kong Gateway | http://localhost:8000 | API proxy |
 | RAG Service | http://localhost:8001/health | LangChain service |
-| Ingestion | http://localhost:8002/health | Document processing |
 
 ## 📖 Documentation Quick Links
 

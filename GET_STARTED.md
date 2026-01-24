@@ -93,13 +93,12 @@ After startup, you have:
 | Frontend | [http://localhost:3000](http://localhost:3000) | Chat UI |
 | Kong Gateway | [http://localhost:8000](http://localhost:8000) | API Gateway |
 | RAG Service | [http://localhost:8001/health](http://localhost:8001/health) | LangChain RAG |
-| Ingestion | [http://localhost:8002/health](http://localhost:8002/health) | Document processing |
 
 ## Common First-Time Issues
 
 ### "Port already in use"
 
-Something is using port 3000, 8000, 8001, or 8002.
+Something is using port 3000, 8000, or 8001.
 
 **Fix**: Stop the conflicting service or edit `docker-compose.yml`
 
@@ -200,16 +199,18 @@ Should see all green checkmarks ✅
 
 ```
 You → Frontend (Next.js) → Kong Gateway → RAG Service (LangChain)
-                                       → Ingestion Service
                                             ↓
                               Ollama + Pinecone + Redis
+                                            ↑
+                                   [Offline data loading]
+                                     data-loading/ scripts
 ```
 
 ## What You Can Do
 
-- ✅ Chat with your documents
+- ✅ Chat with your F1 data
 - ✅ Compare retrieval strategies
-- ✅ Upload PDFs and text files
+- ✅ Load comprehensive F1 historical data
 - ✅ Maintain conversation history
 - ✅ Stream responses in real-time
 - ✅ Scale for production use

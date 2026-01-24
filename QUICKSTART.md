@@ -19,8 +19,8 @@ Edit the `.env` file and add your Pinecone credentials:
 
 ```bash
 PINECONE_API_KEY=pcsk_xxxxx_your_actual_key_here
-PINECONE_ENVIRONMENT=us-east-1-aws
-PINECONE_INDEX=your-index-name
+PINECONE_ENVIRONMENT=us-east-1
+PINECONE_INDEX=f1-race-knowledge
 ```
 
 ### 2. Run Setup Script
@@ -171,15 +171,13 @@ docker stats
 │ :8000       │
 └──────┬──────┘
        │
-   ┌───┴───┐
-   ↓       ↓
-┌──────┐ ┌──────────┐
-│ RAG  │ │Ingestion │
-│:8001 │ │  :8002   │
-└───┬──┘ └────┬─────┘
-    │         │
-    └────┬────┘
-         ↓
+       ↓
+   ┌──────┐
+   │ RAG  │
+   │:8001 │
+   └───┬──┘
+       │
+       ↓
    ┌─────────────┐
    │   Pinecone  │  ← Your vector DB
    │   Ollama    │  ← Local LLM
@@ -191,11 +189,11 @@ docker stats
 
 - **Frontend**: Modern chat interface with streaming
 - **RAG Service**: 4 retrieval strategies + conversation memory
-- **Ingestion Service**: PDF & text file processing
 - **Kong Gateway**: Rate limiting, CORS, health checks
 - **Ollama**: Local Llama 3.1 inference
 - **Pinecone**: Vector similarity search
 - **Redis**: Session and conversation storage
+- **Data Loading**: Offline scripts to populate Pinecone with F1 data
 
 ## Configuration
 
@@ -204,7 +202,7 @@ All configuration is in `.env`. Key settings:
 - `OLLAMA_MODEL`: Change to llama2, mistral, etc.
 - `PINECONE_INDEX`: Your index name
 - Rate limits: Edit `services/kong/kong.yml`
-- Chunk size: Edit `services/ingestion-service/app/main.py`
+- Data loading: See `data-loading/README.md`
 
 ## Need Help?
 
