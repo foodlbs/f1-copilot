@@ -1,0 +1,199 @@
+_format_version: "3.0"
+
+# ==================== UPSTREAMS ====================
+upstreams:
+  - name: rag-service-upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        type: http
+        http_path: /health
+        timeout: 5
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+    targets:
+      - target: rag-service:8001
+        weight: 100
+
+  - name: ingestion-service-upstream
+    algorithm: round-robin
+    healthchecks:
+      active:
+        type: http
+        http_path: /health
+        timeout: 5
+        healthy:
+          interval: 10
+          successes: 2
+        unhealthy:
+          interval: 10
+          http_failures: 3
+    targets:
+      - target: ingestion-service:8002
+        weight: 100
+
+# ==================== SERVICES ====================
+services:
+  # ========== RAG Service ==========
+  - name: rag-service
+    host: rag-service-upstream
+    port: 8001
+    protocol: http
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    retries: 3
+
+    routes:
+      - name: chat-route
+        paths:
+          - /api/chat
+        methods:
+          - POST
+          - OPTIONS
+        strip_path: false
+
+      - name: test-strategies-route
+        paths:
+          - /api/test-strategies
+        methods:
+          - POST
+          - OPTIONS
+        strip_path: false
+
+      - name: session-route
+        paths:
+          - /api/session
+        methods:
+          - DELETE
+          - OPTIONS
+        strip_path: false
+
+      - name: strategies-route
+        paths:
+          - /api/retrieval-strategies
+        methods:
+          - GET
+          - OPTIONS
+        strip_path: false
+
+    plugins:
+      - name: rate-limiting
+        config:
+          second: 10
+          minute: 100
+          hour: 1000
+          policy: local
+          fault_tolerant: true
+
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - DELETE
+            - OPTIONS
+          headers:
+            - "*"
+          credentials: true
+          max_age: 3600
+
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 10
+          size_unit: megabytes
+
+      - name: response-transformer
+        config:
+          add:
+            headers:
+              - "X-Service:RAG-Service"
+
+      - name: prometheus
+        config:
+          per_consumer: true
+
+  # ========== Ingestion Service ==========
+  - name: ingestion-service
+    host: ingestion-service-upstream
+    port: 8002
+    protocol: http
+    connect_timeout: 300000
+    write_timeout: 300000
+    read_timeout: 300000
+    retries: 1
+
+    routes:
+      - name: ingest-route
+        paths:
+          - /api/ingest
+        methods:
+          - POST
+          - OPTIONS
+        strip_path: false
+
+      - name: ingest-pdf-route
+        paths:
+          - /api/ingest/pdf
+        methods:
+          - POST
+          - OPTIONS
+        strip_path: false
+
+      - name: ingest-text-route
+        paths:
+          - /api/ingest/text-file
+        methods:
+          - POST
+          - OPTIONS
+        strip_path: false
+
+      - name: stats-route
+        paths:
+          - /api/stats
+        methods:
+          - GET
+          - OPTIONS
+        strip_path: false
+
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 30
+          hour: 500
+          policy: local
+
+      - name: cors
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - OPTIONS
+          headers:
+            - "*"
+          credentials: true
+
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 50
+          size_unit: megabytes
+
+      - name: prometheus
+        config:
+          per_consumer: true
+
+# ==================== GLOBAL PLUGINS ====================
+plugins:
+  - name: correlation-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid
+      echo_downstream: true

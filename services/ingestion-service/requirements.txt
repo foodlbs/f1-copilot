@@ -1,0 +1,11 @@
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+langchain==0.1.20
+langchain-community==0.0.38
+langchain-pinecone==0.1.0
+pinecone-client==3.2.2
+sentence-transformers==2.6.1
+pypdf==4.1.0
+python-multipart==0.0.9
+pydantic==2.5.3
+torch==2.1.2

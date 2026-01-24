@@ -1,182 +1,218 @@
-# Quick Start Guide
+# Quick Start Guide - RAG Microservices
 
-Get up and running with the F1 Knowledge Base in 5 minutes.
+Get your RAG system running in minutes!
 
-## 1. Prerequisites
+## Prerequisites Checklist
 
-```bash
-# Check Python version (requires 3.9+)
-python --version
+- [ ] Docker Desktop installed and running
+- [ ] Pinecone account created
+- [ ] Pinecone API key obtained
+- [ ] Pinecone index created (dimension: 384 for sentence-transformers/all-MiniLM-L6-v2)
+- [ ] At least 8GB RAM available
+- [ ] 20GB free disk space
 
-# Install pip if needed
-python -m ensurepip --upgrade
-```
+## Step-by-Step Setup
 
-## 2. Get API Keys
+### 1. Configure Your Environment
 
-### Pinecone (Vector Database)
-1. Go to [pinecone.io](https://www.pinecone.io/)
-2. Sign up for free account
-3. Create new project
-4. Copy API key from dashboard
-
-### OpenAI (Embeddings)
-1. Go to [platform.openai.com](https://platform.openai.com/)
-2. Sign up or log in
-3. Go to API keys section
-4. Create new API key
-5. Copy the key (shown only once!)
-
-## 3. Install
+Edit the `.env` file and add your Pinecone credentials:
 
 ```bash
-# Clone repository
-git clone <your-repo-url>
-cd BuildWatch
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+PINECONE_API_KEY=pcsk_xxxxx_your_actual_key_here
+PINECONE_ENVIRONMENT=us-east-1-aws
+PINECONE_INDEX=your-index-name
 ```
 
-## 4. Configure
+### 2. Run Setup Script
 
 ```bash
-# Copy environment template
-cp .env.example .env
-
-# Edit .env file with your API keys
-# Use nano, vim, or your preferred editor
-nano .env
+cd rag-microservices
+./scripts/setup.sh
 ```
 
-Add your keys to `.env`:
-```bash
-PINECONE_API_KEY=your_pinecone_key_here
-OPENAI_API_KEY=your_openai_key_here
-START_YEAR=2017
-```
+This checks prerequisites and builds all Docker images.
 
-## 5. Build Knowledge Base
+### 3. Start All Services
 
 ```bash
-cd src
-python knowledge_base_builder.py
+./scripts/start.sh
 ```
 
-This will:
-- Download F1 race data from 2017-present (~2-4 hours)
-- Generate embeddings
-- Create vector database
+**First run takes 10-15 minutes** to download:
+- Ollama Llama 3.1 model (~4GB)
+- Python dependencies with embedding models
+- Node modules
 
-**Coffee break recommended!** ☕
+Subsequent starts take 30-60 seconds.
 
-## 6. Test Strategy Prediction
+### 4. Seed Sample Data
+
+In a new terminal:
 
 ```bash
-cd src
-python strategy_predictor.py
+./scripts/seed-data.sh
 ```
 
-You should see strategy recommendations for Monza.
+This adds 10 documents about machine learning to your vector database.
 
-## 7. Run Race Simulation
+### 5. Open the Application
+
+Visit [http://localhost:3000](http://localhost:3000)
+
+## Try It Out
+
+### Example Questions (after seeding data)
+
+1. "What is machine learning?"
+2. "Explain supervised learning"
+3. "What is the difference between supervised and unsupervised learning?"
+4. "Tell me about deep learning"
+5. "What is overfitting and how do I prevent it?"
+
+### Test Different Retrieval Strategies
+
+In the frontend:
+1. Type a question in the input box
+2. Select a retrieval strategy from the dropdown
+3. Click "Test Strategies" to compare all strategies
+4. Enable/disable streaming to see the difference
+
+## Verify Everything Works
+
+Run the test script:
 
 ```bash
-cd src
-python race_simulator.py
+./scripts/test-api.sh
 ```
 
-Watch a simulated race unfold lap-by-lap!
+This tests:
+- Health endpoints
+- Chat functionality
+- Document ingestion
+- Database statistics
 
-## Quick Examples
+## Common Issues
 
-### Predict Strategy
+### "Port already in use"
 
-```python
-from src.strategy_predictor import F1StrategyPredictor, SessionData
+Stop conflicting services or edit `docker-compose.yml` to use different ports.
 
-predictor = F1StrategyPredictor()
+### "Cannot connect to Docker"
 
-session = SessionData(
-    circuit="Spa",
-    session_type="Race",
-    lap_number=1,
-    total_laps=44,
-    air_temp=20.0,
-    track_temp=28.0,
-    weather="Dry",
-    available_compounds=["SOFT", "MEDIUM", "HARD"]
-)
+Ensure Docker Desktop is running.
 
-recommendation = predictor.predict_optimal_strategy(session)
-print(f"Strategy: {recommendation.strategy_type}")
+### "Pinecone connection failed"
+
+Verify your API key and index name in `.env`.
+
+### Ollama model stuck downloading
+
+Check progress:
+```bash
+docker logs rag-ollama -f
 ```
 
-### Search Similar Races
-
-```python
-from src.vector_db import F1VectorDB
-
-vdb = F1VectorDB()
-
-results = vdb.search_similar_races(
-    query="High-speed circuit dry conditions",
-    top_k=5
-)
-
-for r in results:
-    print(f"{r['metadata']['race_name']} - Score: {r['score']:.3f}")
+Manually pull:
+```bash
+docker exec rag-ollama ollama pull llama3.1
 ```
-
-## Troubleshooting
-
-### "Pinecone API key not found"
-- Check `.env` file exists
-- Verify API key is correct
-- Try `source .env` before running
-
-### "FastF1 download failed"
-- Check internet connection
-- Some races may have limited data
-- Script will continue with available data
-
-### "Out of memory"
-- Reduce `START_YEAR` in `.env` (e.g., 2020)
-- Process fewer years at once
-- Increase system swap space
-
-### "OpenAI rate limit"
-- Free tier has limits
-- Script will retry automatically
-- Consider upgrading plan for faster processing
 
 ## Next Steps
 
-1. Read full [README.md](README.md) for detailed documentation
-2. Explore the code in `src/` directory
-3. Customize for your use case
-4. Build integrations (APIs, dashboards, etc.)
+### Ingest Your Own Documents
 
-## Tips
+**PDF:**
+```bash
+curl -X POST http://localhost:8000/api/ingest/pdf \
+  -F "file=@/path/to/your/document.pdf"
+```
 
-- Start with recent years (2020+) for faster initial build
-- Use `skip_ingestion=True` to collect data without vector DB
-- Cache is stored in `cache/` - don't delete during builds
-- Check `logs/` for detailed progress
+**Text:**
+```bash
+curl -X POST http://localhost:8000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "documents": [
+      {"content": "Your text here", "metadata": {"source": "custom"}}
+    ]
+  }'
+```
 
-## Getting Help
+### Monitor Your System
 
-- Check documentation in [README.md](README.md)
-- Review code comments in source files
-- Open issue on GitHub
+```bash
+# View logs
+docker-compose logs -f
 
-Happy racing! 🏎️💨
+# Check specific service
+docker-compose logs -f rag-service
+
+# Monitor resource usage
+docker stats
+```
+
+### Stop the System
+
+```bash
+./scripts/stop.sh
+```
+
+## Architecture at a Glance
+
+```
+┌─────────────┐
+│   Browser   │
+│ :3000       │
+└──────┬──────┘
+       │
+       ↓
+┌─────────────┐
+│    Kong     │  ← API Gateway (rate limiting, routing)
+│ :8000       │
+└──────┬──────┘
+       │
+   ┌───┴───┐
+   ↓       ↓
+┌──────┐ ┌──────────┐
+│ RAG  │ │Ingestion │
+│:8001 │ │  :8002   │
+└───┬──┘ └────┬─────┘
+    │         │
+    └────┬────┘
+         ↓
+   ┌─────────────┐
+   │   Pinecone  │  ← Your vector DB
+   │   Ollama    │  ← Local LLM
+   │   Redis     │  ← Conversation memory
+   └─────────────┘
+```
+
+## What You Get
+
+- **Frontend**: Modern chat interface with streaming
+- **RAG Service**: 4 retrieval strategies + conversation memory
+- **Ingestion Service**: PDF & text file processing
+- **Kong Gateway**: Rate limiting, CORS, health checks
+- **Ollama**: Local Llama 3.1 inference
+- **Pinecone**: Vector similarity search
+- **Redis**: Session and conversation storage
+
+## Configuration
+
+All configuration is in `.env`. Key settings:
+
+- `OLLAMA_MODEL`: Change to llama2, mistral, etc.
+- `PINECONE_INDEX`: Your index name
+- Rate limits: Edit `services/kong/kong.yml`
+- Chunk size: Edit `services/ingestion-service/app/main.py`
+
+## Need Help?
+
+1. Check `README.md` for detailed documentation
+2. Review `docker-compose logs` for errors
+3. Verify `.env` configuration
+4. Ensure Docker has enough resources (Docker Desktop → Settings → Resources)
+
+---
+
+**Ready to build amazing RAG applications!**

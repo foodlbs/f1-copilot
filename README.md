@@ -1,298 +1,350 @@
-# F1 Race Knowledge Base & Strategy Predictor
+# F1 RAG Microservices Platform
 
-A comprehensive F1 race analysis system that builds a knowledge base from historical race data (2017-present) and uses vector similarity search to predict optimal race strategies and simulate race outcomes.
+A production-ready Retrieval-Augmented Generation (RAG) system for Formula 1 data, featuring microservices architecture, multiple retrieval strategies, streaming responses, and comprehensive F1 data loading capabilities.
 
-## Features
+## 🏎️ What This Is
 
-### 📊 Data Collection
-- Collects comprehensive F1 race data from 2017 onwards using FastF1
-- Full telemetry: lap times, tire strategies, pit stops, weather conditions
-- Track status: safety cars, red flags, incidents
-- Driver and team performance data
-- Qualifying and sprint race results
+This project combines two powerful systems:
 
-### 🧠 Vector Knowledge Base
-- Powered by Pinecone vector database
-- OpenAI text-embedding-3-large embeddings (3072 dimensions)
-- Semantic search across historical races
-- Retrieval-Augmented Generation (RAG) ready
+1. **RAG Microservices** - A sophisticated AI-powered chat system for querying F1 data
+2. **F1 Data Loading** - Scripts to populate your vector database with comprehensive F1 historical data
 
-### 🏎️ Strategy Prediction
-- Predicts optimal race strategies based on historical data
-- Analyzes similar races using vector similarity search
-- Recommends tire compound sequences
-- Calculates pit stop windows
-- Real-time strategy updates during race progression
+## 🚀 Quick Start
 
-### 🎮 Race Simulation
-- Lap-by-lap race simulation
-- Tire degradation modeling
-- Dynamic pit stop decisions
-- Position updates based on race time
-- Random events (safety cars, DNFs)
-- Strategy updates mid-race
+### 1. Prerequisites
 
-## Project Structure
+- Docker Desktop installed and running
+- Pinecone account with API key
+- OpenAI API key (for data loading)
+- 8GB RAM minimum (16GB recommended)
 
-```
-BuildWatch/
-├── src/
-│   ├── data_collector.py          # F1 data collection module
-│   ├── vector_db.py                # Vector database integration
-│   ├── knowledge_base_builder.py   # Pipeline orchestrator
-│   ├── strategy_predictor.py       # Strategy prediction engine
-│   └── race_simulator.py           # Race simulation engine
-├── cache/                          # Cached data
-│   ├── f1_data/                   # Processed race data
-│   └── fastf1/                    # FastF1 cache
-├── data/                          # Exported datasets
-├── logs/                          # Application logs
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+### 2. Configure Environment
 
-## Installation
-
-### Prerequisites
-- Python 3.9+
-- Pinecone account (free tier available)
-- OpenAI API key
-
-### Setup
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd BuildWatch
-```
-
-2. Create virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Configure environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your API keys
-```
-
-Required environment variables:
-- `PINECONE_API_KEY`: Your Pinecone API key
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `START_YEAR`: Starting year for data collection (default: 2017)
-
-## Usage
-
-### 1. Build Knowledge Base
-
-Collect F1 data and ingest into vector database:
+Create a `.env` file in the root directory:
 
 ```bash
-cd src
-python knowledge_base_builder.py
+# Pinecone (required for both)
+PINECONE_API_KEY=your-pinecone-api-key
+PINECONE_ENVIRONMENT=us-east-1-aws
+PINECONE_INDEX=your-index-name
+
+# OpenAI (required for data loading)
+OPENAI_API_KEY=your-openai-api-key
+
+# RAG System Configuration
+OLLAMA_MODEL=llama3.1
+OLLAMA_HOST=http://ollama:11434
+REDIS_HOST=redis
+REDIS_PORT=6379
+API_URL=http://localhost:8000
 ```
 
-This will:
-1. Collect all F1 race data from 2017-present using FastF1
-2. Process and structure the data
-3. Generate embeddings using OpenAI
-4. Ingest into Pinecone vector database
+### 3. Option A: Start RAG System (No Data Loading)
 
-**Note:** Initial build can take 2-4 hours depending on your internet connection and API rate limits.
+If you already have data in Pinecone or want to try the system first:
 
-### 2. Predict Race Strategy
-
-```python
-from src.strategy_predictor import F1StrategyPredictor, SessionData
-
-# Initialize predictor
-predictor = F1StrategyPredictor()
-
-# Define current session
-session = SessionData(
-    circuit="Monaco",
-    session_type="Race",
-    lap_number=1,
-    total_laps=78,
-    air_temp=22.0,
-    track_temp=38.0,
-    weather="Dry",
-    available_compounds=["SOFT", "MEDIUM", "HARD"]
-)
-
-# Get strategy recommendation
-recommendation = predictor.predict_optimal_strategy(session)
-
-print(f"Recommended: {recommendation.strategy_type}")
-print(f"Confidence: {recommendation.confidence:.1%}")
-print(f"\nStint Plan:")
-for stint in recommendation.stints:
-    print(f"  Stint {stint['stint_number']}: {stint['compound']} "
-          f"(Laps {stint['start_lap']}-{stint['end_lap']})")
+```bash
+cd rag-microservices
+./scripts/setup.sh
+./scripts/start.sh
 ```
 
-### 3. Simulate Race
+Open [http://localhost:3000](http://localhost:3000) to use the chat interface.
 
-```python
-from src.race_simulator import RaceSimulator
+### 3. Option B: Load F1 Data First
 
-# Initialize simulator
-simulator = RaceSimulator()
+To populate your Pinecone database with F1 historical data:
 
-# Define driver grid
-drivers = [
-    {'number': '1', 'name': 'Max Verstappen', 'team': 'Red Bull', 'base_lap_time': 78.0},
-    {'number': '44', 'name': 'Lewis Hamilton', 'team': 'Mercedes', 'base_lap_time': 78.2},
-    {'number': '16', 'name': 'Charles Leclerc', 'team': 'Ferrari', 'base_lap_time': 78.3},
-]
+```bash
+cd rag-microservices/data-loading
 
-# Setup race
-simulator.setup_race(
-    circuit="Silverstone",
-    total_laps=52,
-    drivers=drivers,
-    weather="Dry",
-    track_temp=32.0
-)
+# Install dependencies
+pip install -r requirements-data.txt
 
-# Run simulation
-results = simulator.simulate_race(verbose=True)
+# Load complete F1 database (1950-latest)
+python ingest_complete_database.py
 
-# View results
-for classification in results['classifications']:
-    print(f"P{classification['position']}: {classification['driver']} - "
-          f"{classification['stops']} stops")
+# OR for quick test with modern data only (2020-latest)
+python ingest_complete_database.py --modern-only
 ```
 
-### 4. Search Similar Races
+Then start the RAG system as shown in Option A.
 
-```python
-from src.vector_db import F1VectorDB
+## 📁 Project Structure
 
-# Initialize vector database
-vdb = F1VectorDB()
-
-# Search for similar races
-results = vdb.search_similar_races(
-    query="Monaco street circuit wet conditions multiple safety cars",
-    top_k=5
-)
-
-for result in results:
-    print(f"\nSimilarity: {result['score']:.3f}")
-    print(f"Race: {result['text'][:200]}...")
+```
+.
+├── .env                          # Environment configuration
+├── .env.example                  # Example configuration
+├── data/                         # F1 CSV data files (optional)
+│
+└── rag-microservices/            # Main RAG system
+    ├── README.md                 # Detailed RAG documentation
+    ├── QUICKSTART.md             # Quick start guide
+    ├── GET_STARTED.md            # 5-minute setup
+    ├── PROJECT_SUMMARY.md        # Technical overview
+    │
+    ├── .env                      # RAG system config
+    ├── docker-compose.yml        # Service orchestration
+    │
+    ├── services/                 # Microservices
+    │   ├── rag-service/          # LangChain RAG service
+    │   ├── ingestion-service/    # Document processing
+    │   ├── kong/                 # API Gateway
+    │   └── frontend/             # Next.js UI
+    │
+    ├── scripts/                  # Deployment scripts
+    │   ├── setup.sh              # Initial setup
+    │   ├── start.sh              # Start services
+    │   ├── stop.sh               # Stop services
+    │   ├── test-api.sh           # Test endpoints
+    │   └── seed-data.sh          # Sample data
+    │
+    ├── docs/                     # Documentation
+    │   ├── DEPLOYMENT.md         # Production deployment
+    │   └── TROUBLESHOOTING.md    # Common issues
+    │
+    └── data-loading/             # F1 data loading scripts
+        ├── README.md             # Data loading guide
+        ├── ingest_complete_database.py
+        ├── ingest_csv_data.py
+        ├── ingest_fantasy_data.py
+        ├── requirements-data.txt
+        └── src/                  # Data loading modules
 ```
 
-### 5. Update with Latest Races
+## 🎯 Features
 
-Incrementally update the knowledge base with new races:
+### RAG Microservices
 
-```python
-from src.knowledge_base_builder import F1KnowledgeBaseBuilder
+- **4 Retrieval Strategies**: Similarity, MMR, Multi-Query, Compression
+- **Streaming Responses**: Real-time token-by-token generation
+- **Conversation Memory**: Redis-backed session management
+- **Kong API Gateway**: Rate limiting, CORS, health checks
+- **Modern Frontend**: Next.js with TypeScript and Tailwind CSS
+- **Local LLM**: Ollama (Llama 3.1) for complete privacy
+- **Production Ready**: Docker containerized with health checks
 
-builder = F1KnowledgeBaseBuilder()
-builder.update_with_latest_races()
+### F1 Data Loading
+
+- **Comprehensive Data**: 1950-present Formula 1 history
+- **Multiple Sources**: CSV files, FastF1 API, Ergast API
+- **Telemetry Data**: Modern races include detailed telemetry
+- **Fantasy Metrics**: Driver value, points potential, recommendations
+- **Flexible Loading**: Complete database or targeted updates
+
+## 🔧 Common Use Cases
+
+### Use Case 1: Chat About F1 History
+
+1. Load historical data:
+   ```bash
+   cd rag-microservices/data-loading
+   python ingest_complete_database.py
+   ```
+
+2. Start RAG system:
+   ```bash
+   cd ..
+   ./scripts/start.sh
+   ```
+
+3. Ask questions like:
+   - "Who won the 2023 Monaco Grand Prix?"
+   - "What are Lewis Hamilton's career statistics?"
+   - "Compare Max Verstappen and Charles Leclerc's performance at Monza"
+
+### Use Case 2: F1 Fantasy Assistant
+
+1. Load fantasy-optimized data:
+   ```bash
+   cd rag-microservices/data-loading
+   python ingest_fantasy_data.py
+   ```
+
+2. Start RAG system and ask:
+   - "Best driver picks for Silverstone?"
+   - "Which drivers offer the best value this weekend?"
+   - "Red Bull's historical performance at Spa?"
+
+### Use Case 3: Your Own Documents
+
+Skip F1 data loading entirely and use with your own documents:
+
+1. Start RAG system:
+   ```bash
+   cd rag-microservices
+   ./scripts/start.sh
+   ```
+
+2. Upload documents via API:
+   ```bash
+   curl -X POST http://localhost:8000/api/ingest/pdf \
+     -F "file=@your-document.pdf"
+   ```
+
+3. Chat with your documents!
+
+## 📊 Technology Stack
+
+### RAG System
+- **Backend**: Python 3.11, FastAPI, LangChain
+- **LLM**: Ollama (Llama 3.1) - runs locally
+- **Vector DB**: Pinecone (cloud-based)
+- **Cache/Memory**: Redis
+- **API Gateway**: Kong
+- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
+- **Infrastructure**: Docker, Docker Compose
+
+### Data Loading
+- **Processing**: Python 3.11, pandas, numpy
+- **APIs**: FastF1, Ergast, OpenF1
+- **Embeddings**: OpenAI text-embedding-3-small
+- **Vector DB**: Pinecone
+
+## 📖 Documentation
+
+### Quick Start
+- [GET_STARTED.md](rag-microservices/GET_STARTED.md) - 5-minute setup
+- [QUICKSTART.md](rag-microservices/QUICKSTART.md) - Detailed guide
+
+### Main Documentation
+- [RAG System README](rag-microservices/README.md) - Complete RAG documentation
+- [Data Loading README](rag-microservices/data-loading/README.md) - Data ingestion guide
+
+### Technical Details
+- [PROJECT_SUMMARY.md](rag-microservices/PROJECT_SUMMARY.md) - Architecture overview
+- [DEPLOYMENT.md](rag-microservices/docs/DEPLOYMENT.md) - Production deployment
+- [TROUBLESHOOTING.md](rag-microservices/docs/TROUBLESHOOTING.md) - Common issues
+
+## 🌐 Service URLs
+
+Once running, access these services:
+
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **Kong Gateway**: [http://localhost:8000](http://localhost:8000)
+- **RAG Service**: [http://localhost:8001/health](http://localhost:8001/health)
+- **Ingestion Service**: [http://localhost:8002/health](http://localhost:8002/health)
+
+## 🎨 Retrieval Strategies
+
+The system supports 4 different retrieval strategies:
+
+| Strategy | Best For | Speed |
+|----------|----------|-------|
+| **Similarity** | Direct questions | ⚡⚡⚡ Fast |
+| **MMR** | Diverse perspectives | ⚡⚡ Medium |
+| **Multi-Query** | Complex questions | ⚡ Slow |
+| **Compression** | Long documents | ⚡ Slow |
+
+Try them all using the frontend's strategy selector!
+
+## 💰 Cost Considerations
+
+### Data Loading (One-time)
+- **Complete DB** (1950-latest): ~$10-12 in OpenAI embeddings
+- **Modern only** (2020-latest): ~$3-4
+- **Updates**: ~$1-2 per update
+
+### Running RAG System
+- **Ollama**: Free (runs locally)
+- **Pinecone**: ~$70-100/month (Starter plan)
+- **Hosting**: $50-200/month (if deploying to cloud)
+
+## 🔐 Security Notes
+
+This is a development/demo configuration. For production:
+
+1. Add authentication to Kong (JWT/Key Auth plugins)
+2. Use SSL/TLS with reverse proxy (Nginx + Let's Encrypt)
+3. Secure environment variables (AWS Secrets Manager, etc.)
+4. Implement proper network isolation
+5. Enable audit logging
+
+See [DEPLOYMENT.md](rag-microservices/docs/DEPLOYMENT.md) for details.
+
+## 🚦 Architecture
+
+```
+┌─────────────┐
+│   Browser   │
+└──────┬──────┘
+       │
+       ↓
+┌─────────────┐
+│    Kong     │  ← API Gateway
+│   :8000     │
+└──────┬──────┘
+       │
+   ┌───┴────┐
+   ↓        ↓
+┌──────┐ ┌─────────┐
+│ RAG  │ │Ingestion│
+│:8001 │ │  :8002  │
+└───┬──┘ └────┬────┘
+    │         │
+    └────┬────┘
+         ↓
+   ┌──────────┐
+   │ Pinecone │  ← Vector DB (your F1 data)
+   │  Ollama  │  ← Local LLM
+   │  Redis   │  ← Conversation memory
+   └──────────┘
 ```
 
-## API Reference
+## 🛠️ Development
 
-### Data Collector
+### Running Tests
 
-**F1DataCollector**
-- `collect_all_seasons(years)`: Collect data for multiple seasons
-- `collect_season(year)`: Collect single season
-- `collect_race_weekend(year, round)`: Collect single race
-- `export_to_json(data, file)`: Export collected data
+```bash
+cd rag-microservices
+./scripts/test-api.sh
+```
 
-### Vector Database
+### Viewing Logs
 
-**F1VectorDB**
-- `ingest_race_data(races)`: Ingest race data into vector DB
-- `search_similar_races(query, top_k)`: Search for similar races
-- `search_similar_strategies(query, circuit, top_k)`: Search strategies
-- `get_race_context(conditions, top_k)`: Get relevant historical context
-- `get_stats()`: Get database statistics
+```bash
+# All services
+docker-compose logs -f
 
-### Strategy Predictor
+# Specific service
+docker-compose logs -f rag-service
+```
 
-**F1StrategyPredictor**
-- `predict_optimal_strategy(session_data, position)`: Predict strategy
-- `predict_pit_window(session_data, compound, stint_start)`: Calculate pit window
-- `suggest_next_compound(session_data, remaining_laps, used)`: Recommend compound
-- `get_live_strategy_update(session_data, original_plan, lap)`: Live updates
+### Rebuilding After Changes
 
-### Race Simulator
+```bash
+docker-compose up -d --build rag-service
+```
 
-**RaceSimulator**
-- `setup_race(circuit, laps, drivers, weather, temps)`: Configure race
-- `simulate_race(verbose)`: Run complete simulation
-- `simulate_lap(verbose)`: Simulate single lap
-- `get_live_standings()`: Get current standings
-- `update_strategy_mid_race(driver_name)`: Update strategy during race
-- `export_lap_chart()`: Export position data
+## 🤝 Contributing
 
-## Data Sources
+This is a complete, standalone project. Feel free to fork and customize for your needs!
 
-- **FastF1**: Primary source for detailed telemetry and timing data
-- **Ergast API**: Fallback for basic race results (if needed)
+## 📝 License
 
-## Performance
+MIT License - use freely for your projects.
 
-- **Data Collection**: ~2-4 hours for complete dataset (2017-present)
-- **Vector Ingestion**: ~30-60 minutes for ~200 races
-- **Strategy Prediction**: <2 seconds per query
-- **Race Simulation**: <5 seconds for 50-70 lap race
+## 🆘 Need Help?
 
-## Limitations
+1. Check [TROUBLESHOOTING.md](rag-microservices/docs/TROUBLESHOOTING.md)
+2. Review service logs: `docker-compose logs`
+3. Verify environment configuration in `.env`
+4. Ensure all services are healthy: `docker ps`
 
-- FastF1 data availability varies by season (newer = more detailed)
-- Telemetry data sampled to reduce storage requirements
-- Simulation uses simplified tire degradation model
-- Weather data may be incomplete for older races
+## 🎯 Next Steps
 
-## Future Enhancements
-
-- [ ] Live timing integration for real-time predictions
-- [ ] Advanced tire degradation models (ML-based)
-- [ ] Fuel load impact modeling
-- [ ] DRS effect simulation
-- [ ] Team radio context analysis
-- [ ] LLM-powered natural language strategy explanations
-- [ ] Web dashboard for visualizations
-
-## Contributing
-
-Contributions welcome! Areas of interest:
-- Improved tire degradation models
-- Additional data sources
-- Better simulation accuracy
-- Visualization tools
-
-## License
-
-MIT License
-
-## Acknowledgments
-
-- FastF1 for comprehensive F1 data access
-- Pinecone for vector database infrastructure
-- OpenAI for embedding models
-
-## Support
-
-For issues or questions:
-1. Check existing documentation
-2. Search closed issues
-3. Open new issue with details
+1. **Configure** your environment variables in `.env`
+2. **Choose** your path:
+   - Load F1 data → Use for F1 queries
+   - Skip data → Use with your own documents
+3. **Start** the RAG system: `cd rag-microservices && ./scripts/start.sh`
+4. **Open** [http://localhost:3000](http://localhost:3000)
+5. **Explore** different retrieval strategies
+6. **Deploy** to production when ready
 
 ---
 
-Built with ❤️ for F1 strategy analysis
+**Built with:** LangChain • Ollama • Pinecone • Kong • Next.js • FastAPI • Redis
+
+**Ready to query your F1 knowledge base!** 🏎️🏆
