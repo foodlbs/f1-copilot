@@ -1,63 +1,22 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Environment
+# .gitignore
 .env
-.venv
-
-# Cache
-cache/
-*.cache
-.cache/
-
-# Data
-data/
-*.parquet
-*.csv
-*.json.gz
-
-# IDEs
+.env.local
+*.pyc
+__pycache__/
+*.log
+node_modules/
+.next/
+dist/
+build/
+*.swp
+.DS_Store
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 
-# Logs
-*.log
-logs/
+# FastF1 cache files
+data-loading/src/cache/
+*.sqlite
+*.ff1pkl
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
+# Large data files (keep in data/ directory only)
+data-loading/src/data/
