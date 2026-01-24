@@ -36,7 +36,6 @@ docker-compose logs rag-service
    lsof -i :3000  # Frontend
    lsof -i :8000  # Kong
    lsof -i :8001  # RAG Service
-   lsof -i :8002  # Ingestion
 
    # Kill conflicting process
    kill -9 <PID>
@@ -67,7 +66,6 @@ docker ps
 
 # Manually test health endpoints
 curl http://localhost:8001/health
-curl http://localhost:8002/health
 
 # Restart unhealthy service
 docker-compose restart rag-service
@@ -234,7 +232,7 @@ curl https://api.pinecone.io/indexes \
 PINECONE_API_KEY=pcsk_xxxxx_your_key_here
 
 # Restart services
-docker-compose restart rag-service ingestion-service
+docker-compose restart rag-service
 ```
 
 ### Index Not Found
@@ -263,7 +261,7 @@ print(pc.list_indexes())
 PINECONE_INDEX=your-actual-index-name
 
 # Restart
-docker-compose restart rag-service ingestion-service
+docker-compose restart rag-service
 ```
 
 ### Dimension Mismatch

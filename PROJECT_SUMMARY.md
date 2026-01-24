@@ -4,8 +4,9 @@
 
 A complete, production-ready Retrieval-Augmented Generation (RAG) system with:
 
-- **4 Microservices**: RAG, Ingestion, Kong Gateway, Frontend
+- **3 Microservices**: RAG Service, Kong Gateway, Frontend
 - **3 Infrastructure Services**: Ollama (LLM), Redis (Memory), Pinecone (Vector DB)
+- **Offline Data Pipeline**: Comprehensive F1 data loading scripts
 - **Multiple Retrieval Strategies**: Similarity, MMR, Multi-Query, Compression
 - **Streaming Support**: Real-time token-by-token responses
 - **Complete Documentation**: Setup, deployment, troubleshooting guides
@@ -33,24 +34,21 @@ A complete, production-ready Retrieval-Augmented Generation (RAG) system with:
 │        • CORS handling                              │
 │        • Health checks                              │
 │        • Request routing                            │
-└───────────┬──────────────────┬──────────────────────┘
-            │                  │
-      ┌─────┘                  └─────┐
-      ↓                              ↓
-┌─────────────────┐         ┌────────────────────┐
-│  RAG Service    │         │ Ingestion Service  │
-│  (:8001)        │         │ (:8002)            │
-│                 │         │                    │
-│  • LangChain    │         │  • Document        │
-│  • 4 Strategies │         │    processing      │
-│  • Streaming    │         │  • PDF support     │
-│  • Conversation │         │  • Text chunking   │
-│    memory       │         │  • Vector storage  │
-└────────┬────────┘         └─────────┬──────────┘
-         │                            │
-         │    ┌───────────────────────┘
-         │    │
-         ↓    ↓
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ↓
+┌─────────────────┐
+│  RAG Service    │
+│  (:8001)        │
+│                 │
+│  • LangChain    │
+│  • 4 Strategies │
+│  • Streaming    │
+│  • Conversation │
+│    memory       │
+└────────┬────────┘
+         │
+         ↓
 ┌─────────────────────────────────────────────────────┐
 │              Infrastructure Layer                   │
 │  ┌────────────────┐  ┌────────────┐  ┌──────────┐ │
@@ -80,12 +78,6 @@ rag-microservices/
 │   │   ├── requirements.txt
 │   │   └── app/
 │   │       └── main.py             # FastAPI + LangChain
-│   │
-│   ├── 📁 ingestion-service/       # Document ingestion
-│   │   ├── Dockerfile
-│   │   ├── requirements.txt
-│   │   └── app/
-│   │       └── main.py             # PDF/Text processing
 │   │
 │   ├── 📁 kong/                    # API Gateway
 │   │   ├── Dockerfile
@@ -136,25 +128,7 @@ rag-microservices/
 - `POST /test-strategies` - Compare all strategies
 - `DELETE /session/{id}` - Clear conversation history
 
-### 2. Ingestion Service (services/ingestion-service)
-
-**Technologies**: FastAPI, LangChain, Pinecone
-
-**Features**:
-- ✅ PDF document ingestion
-- ✅ Text file processing
-- ✅ JSON document ingestion
-- ✅ Automatic text chunking (1000 chars, 200 overlap)
-- ✅ Metadata support
-- ✅ Database statistics
-
-**Key Endpoints**:
-- `POST /ingest` - Ingest JSON documents
-- `POST /ingest/pdf` - Upload and process PDFs
-- `POST /ingest/text-file` - Upload and process text
-- `GET /stats` - Vector database statistics
-
-### 3. Kong API Gateway (services/kong)
+### 2. Kong API Gateway (services/kong)
 
 **Features**:
 - ✅ Declarative configuration (DB-less mode)
@@ -167,10 +141,9 @@ rag-microservices/
 
 **Configuration**:
 - RAG Service: 10/sec, 100/min, 1000/hr
-- Ingestion: 30/min, 500/hr
-- Request size: 10MB (RAG), 50MB (Ingestion)
+- Request size: 10MB
 
-### 4. Frontend (services/frontend)
+### 3. Frontend (services/frontend)
 
 **Technologies**: Next.js 14, TypeScript, Tailwind CSS
 
@@ -343,28 +316,6 @@ curl -N -X POST http://localhost:8000/api/chat \
   }'
 ```
 
-### Ingest Documents
-
-```bash
-curl -X POST http://localhost:8000/api/ingest \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "documents": [
-      {
-        "content": "Your document text here",
-        "metadata": {"source": "custom", "author": "You"}
-      }
-    ]
-  }'
-```
-
-### Upload PDF
-
-```bash
-curl -X POST http://localhost:8000/api/ingest/pdf \
-  -F "file=@/path/to/document.pdf"
-```
-
 ## Performance Characteristics
 
 ### Response Times (Approximate)
@@ -384,7 +335,6 @@ curl -X POST http://localhost:8000/api/ingest/pdf \
 |---------|-----|--------|------|
 | Ollama | 2-4 cores | 4-8 GB | 10 GB |
 | RAG Service | 0.5-1 core | 1-2 GB | 500 MB |
-| Ingestion | 0.5-1 core | 500 MB-1 GB | 500 MB |
 | Frontend | 0.1 core | 100-200 MB | 100 MB |
 | Redis | 0.1 core | 50-100 MB | 500 MB |
 | Kong | 0.2 core | 100 MB | 100 MB |
@@ -505,15 +455,15 @@ You have a working system when:
 - ✅ Frontend loads at [http://localhost:3000](http://localhost:3000)
 - ✅ Chat responds to queries
 - ✅ Streaming works
-- ✅ Document ingestion succeeds
+- ✅ Data loading completes (if using F1 data)
 - ✅ All 4 retrieval strategies work
 - ✅ Conversation memory persists
 
 ## Project Stats
 
-- **Total Files Created**: 27
-- **Lines of Code**: ~2,500+
-- **Services**: 7 (4 custom, 3 infrastructure)
+- **Total Files Created**: 24
+- **Lines of Code**: ~2,200+
+- **Services**: 6 (3 custom, 3 infrastructure)
 - **Languages**: Python, TypeScript, YAML, Shell
 - **Deployment Scripts**: 5
 - **Documentation Pages**: 5
