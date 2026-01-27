@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --f1-red: #e10600;
+  --f1-red-dark: #b30500;
+  --f1-black: #15151e;
+  --f1-carbon: #1f1f27;
+  --f1-gray: #38383f;
+  --f1-silver: #c0c0c0;
+  --f1-white: #ffffff;
+}
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-[#15151e] via-[#1f1f27] to-[#15151e] min-h-screen;
+    font-family: 'Titillium Web', system-ui, -apple-system, sans-serif;
+  }
+}
+
 @layer utilities {
   .delay-100 {
     animation-delay: 0.1s;
@@ -9,4 +26,122 @@
   .delay-200 {
     animation-delay: 0.2s;
   }
+}
+
+@layer components {
+  .f1-card {
+    @apply bg-gradient-to-br from-[#1f1f27] to-[#15151e] border border-[#38383f] rounded-lg;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .f1-button-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-[#e10600] to-[#b30500] text-white font-bold rounded-lg;
+    @apply hover:from-[#ff1a14] hover:to-[#e10600] transform transition-all duration-200;
+    @apply hover:scale-105 hover:shadow-lg hover:shadow-red-500/30;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
+
+  .f1-button-secondary {
+    @apply px-4 py-2 bg-[#38383f] text-white font-semibold rounded-lg border border-[#555];
+    @apply hover:bg-[#4a4a52] transform transition-all duration-200;
+  }
+
+  .f1-input {
+    @apply bg-[#1f1f27] border-2 border-[#38383f] text-white placeholder-gray-500 rounded-lg;
+    @apply focus:outline-none focus:border-[#e10600] focus:ring-2 focus:ring-[#e10600]/30;
+  }
+
+  .f1-select {
+    @apply bg-[#1f1f27] border border-[#38383f] text-white rounded-lg px-3 py-2;
+    @apply focus:outline-none focus:border-[#e10600] focus:ring-2 focus:ring-[#e10600]/30;
+  }
+
+  .carbon-pattern {
+    background-image:
+      linear-gradient(45deg, #1a1a22 25%, transparent 25%),
+      linear-gradient(-45deg, #1a1a22 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #1a1a22 75%),
+      linear-gradient(-45deg, transparent 75%, #1a1a22 75%);
+    background-size: 4px 4px;
+    background-position: 0 0, 0 2px, 2px -2px, -2px 0px;
+  }
+
+  .racing-stripe {
+    position: relative;
+  }
+
+  .racing-stripe::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(to bottom, #e10600, #b30500);
+    border-radius: 4px 0 0 4px;
+  }
+
+  .checkered-flag {
+    background-image:
+      linear-gradient(45deg, #000 25%, transparent 25%),
+      linear-gradient(-45deg, #000 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #000 75%),
+      linear-gradient(-45deg, transparent 75%, #000 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    background-color: white;
+  }
+
+  .glow-red {
+    box-shadow: 0 0 20px rgba(225, 6, 0, 0.3), 0 0 40px rgba(225, 6, 0, 0.1);
+  }
+
+  .text-gradient-f1 {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#e10600] to-[#ff6b6b];
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #15151e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #38383f;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #e10600;
+}
+
+/* Loading animation */
+@keyframes pulse-red {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 1.5s ease-in-out infinite;
+}
+
+@keyframes race-loader {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.race-loader {
+  animation: race-loader 1s ease-in-out infinite;
 }

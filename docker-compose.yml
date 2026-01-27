@@ -17,9 +17,13 @@ services:
     networks:
       - rag-network
 
+  # Ollama is optional - only needed if LLM_PROVIDER=ollama
+  # Start with: docker compose --profile ollama up
   ollama:
     image: ollama/ollama:latest
     container_name: rag-ollama
+    profiles:
+      - ollama
     ports:
       - "11434:11434"
     volumes:
@@ -42,17 +46,19 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - OLLAMA_HOST=${OLLAMA_HOST}
-      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
       - PINECONE_API_KEY=${PINECONE_API_KEY}
       - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
       - PINECONE_INDEX=${PINECONE_INDEX}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
+      - WEB_SEARCH_ENABLED=${WEB_SEARCH_ENABLED:-true}
+      - WEB_SEARCH_MAX_RESULTS=${WEB_SEARCH_MAX_RESULTS:-5}
     depends_on:
-      ollama:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:

@@ -7,10 +7,12 @@ import os
 import redis
 import json
 import asyncio
+import hashlib
+from datetime import datetime
 
 # LangChain imports
 from langchain_community.llms import Ollama
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_pinecone import PineconeVectorStore
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
@@ -19,7 +21,9 @@ from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
 from langchain.retrievers.multi_query import MultiQueryRetriever
 from langchain.callbacks.base import AsyncCallbackHandler
+from langchain.schema import Document
 from pinecone import Pinecone
+from ddgs import DDGS
 
 app = FastAPI(title="Advanced RAG Service", version="2.0.0")
 
@@ -33,23 +37,34 @@ app.add_middleware(
 
 # ==================== Configuration ====================
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX = os.getenv("PINECONE_INDEX")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")  # "openai" or "ollama"
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+WEB_SEARCH_ENABLED = os.getenv("WEB_SEARCH_ENABLED", "true").lower() == "true"
+WEB_SEARCH_MAX_RESULTS = int(os.getenv("WEB_SEARCH_MAX_RESULTS", "5"))
 
 # ==================== LangChain Setup ====================
-llm = Ollama(
-    base_url=OLLAMA_HOST,
-    model=OLLAMA_MODEL,
-    temperature=0.7
-)
+def get_llm(temperature: float = 0.7, streaming: bool = True):
+    """Get LLM based on configured provider."""
+    if LLM_PROVIDER == "openai":
+        return ChatOpenAI(
+            model=OPENAI_MODEL,
+            openai_api_key=OPENAI_API_KEY,
+            temperature=temperature,
+            streaming=streaming
+        )
+    else:
+        return Ollama(
+            base_url=OLLAMA_HOST,
+            model=OLLAMA_MODEL,
+            temperature=temperature
+        )
 
-llm_no_stream = Ollama(
-    base_url=OLLAMA_HOST,
-    model=OLLAMA_MODEL,
-    temperature=0.3
-)
+llm = get_llm(temperature=0.7, streaming=True)
+llm_no_stream = get_llm(temperature=0.3, streaming=False)
 
 embeddings = OpenAIEmbeddings(
     model="text-embedding-3-large",
@@ -69,15 +84,42 @@ redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
 
 # ==================== Streaming Callback ====================
 class StreamingCallbackHandler(AsyncCallbackHandler):
+    """Callback handler for streaming tokens from LLM."""
+
     def __init__(self):
         self.tokens = []
         self.finish = False
 
     async def on_llm_new_token(self, token: str, **kwargs) -> None:
-        self.tokens.append(token)
+        if token:  # Only append non-empty tokens
+            self.tokens.append(token)
 
     async def on_llm_end(self, response, **kwargs) -> None:
         self.finish = True
+
+    async def on_chat_model_start(self, serialized, messages, **kwargs) -> None:
+        """Handle chat model start - required for ChatOpenAI compatibility."""
+        pass
+
+    async def on_llm_start(self, serialized, prompts, **kwargs) -> None:
+        """Handle LLM start."""
+        pass
+
+    async def on_chain_start(self, serialized, inputs, **kwargs) -> None:
+        """Handle chain start."""
+        pass
+
+    async def on_chain_end(self, outputs, **kwargs) -> None:
+        """Handle chain end."""
+        pass
+
+    async def on_retriever_start(self, serialized, query, **kwargs) -> None:
+        """Handle retriever start."""
+        pass
+
+    async def on_retriever_end(self, documents, **kwargs) -> None:
+        """Handle retriever end."""
+        pass
 
 # ==================== Models ====================
 class ChatRequest(BaseModel):
@@ -86,12 +128,15 @@ class ChatRequest(BaseModel):
     retrieval_strategy: str = "similarity"
     top_k: int = 5
     stream: bool = False
+    enable_web_fallback: bool = True  # Enable web search if vector DB lacks info
 
 class ChatResponse(BaseModel):
     answer: str
     sources: List[dict]
     session_id: str
     strategy_used: str
+    web_search_used: bool = False
+    cached_for_future: bool = False
 
 # ==================== Retrieval Strategies ====================
 def get_retriever(strategy: str, k: int = 5):
@@ -170,6 +215,128 @@ def save_to_history(session_id: str, role: str, content: str):
     )
     redis_client.expire(history_key, 3600)
 
+# ==================== Web Search Fallback ====================
+def check_insufficient_info(answer: str) -> bool:
+    """Check if the RAG response indicates insufficient information."""
+    insufficient_phrases = [
+        "i don't have enough information",
+        "i don't have sufficient information",
+        "no information available",
+        "cannot find relevant",
+        "not in the context",
+        "no relevant data",
+        "unable to find",
+        "i couldn't find",
+        "no data available"
+    ]
+    answer_lower = answer.lower()
+    return any(phrase in answer_lower for phrase in insufficient_phrases)
+
+def perform_web_search(query: str, max_results: int = 5) -> List[dict]:
+    """Perform web search using DuckDuckGo."""
+    try:
+        ddgs = DDGS()
+        results = list(ddgs.text(
+            f"F1 Formula 1 {query}",  # Add F1 context to search
+            max_results=max_results
+        ))
+        print(f"Web search returned {len(results)} results for: {query}")
+        return results
+    except Exception as e:
+        print(f"Web search error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+def generate_doc_id(content: str) -> str:
+    """Generate a unique document ID from content."""
+    return hashlib.md5(content.encode()).hexdigest()
+
+async def ingest_search_results(query: str, search_results: List[dict]) -> List[Document]:
+    """Ingest web search results into Pinecone for future retrieval."""
+    documents = []
+    vectors_to_upsert = []
+
+    for result in search_results:
+        content = f"{result.get('title', '')}\n\n{result.get('body', '')}"
+        doc_id = generate_doc_id(content)
+
+        # Check if already exists in Redis cache (avoid duplicate ingestion)
+        cache_key = f"web_doc:{doc_id}"
+        if redis_client.exists(cache_key):
+            continue
+
+        metadata = {
+            "source": "web_search",
+            "url": result.get("href", ""),
+            "title": result.get("title", ""),
+            "query": query,
+            "ingested_at": datetime.now().isoformat(),
+            "text": content  # Required for PineconeVectorStore
+        }
+
+        # Create embedding
+        embedding = embeddings.embed_query(content)
+
+        vectors_to_upsert.append({
+            "id": doc_id,
+            "values": embedding,
+            "metadata": metadata
+        })
+
+        documents.append(Document(page_content=content, metadata=metadata))
+
+        # Mark as ingested in Redis (TTL: 7 days)
+        redis_client.setex(cache_key, 604800, "1")
+
+    # Batch upsert to Pinecone
+    if vectors_to_upsert:
+        index.upsert(vectors=vectors_to_upsert)
+        print(f"Ingested {len(vectors_to_upsert)} web search results into Pinecone")
+
+    return documents
+
+async def answer_with_web_context(query: str, web_docs: List[Document], memory) -> str:
+    """Generate answer using web search results as context."""
+    context = "\n\n".join([doc.page_content for doc in web_docs])
+
+    web_prompt = PromptTemplate(
+        template="""You are a helpful F1 racing assistant. Use the following web search results to answer the question.
+
+Web Search Results:
+{context}
+
+Chat History:
+{chat_history}
+
+Question: {question}
+
+Instructions:
+- Answer based on the web search results provided
+- Mention this information comes from web search
+- Be concise and accurate
+- Focus on F1/Formula 1 related information
+
+Answer:""",
+        input_variables=["context", "chat_history", "question"]
+    )
+
+    chat_history = memory.load_memory_variables({}).get("chat_history", [])
+    chat_history_str = "\n".join([f"{m.type}: {m.content}" for m in chat_history]) if chat_history else "None"
+
+    prompt_text = web_prompt.format(
+        context=context,
+        chat_history=chat_history_str,
+        question=query
+    )
+
+    response = llm_no_stream.invoke(prompt_text)
+
+    # Handle both string and AIMessage responses
+    if hasattr(response, 'content'):
+        return response.content
+    return str(response)
+
 # ==================== Prompt Template ====================
 CHAT_PROMPT = PromptTemplate(
     template="""You are a helpful AI assistant. Use the following context to answer the question accurately.
@@ -197,9 +364,11 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "rag-service",
-        "features": ["streaming", "multi_query", "mmr", "compression"],
-        "ollama_model": OLLAMA_MODEL,
-        "pinecone_index": PINECONE_INDEX
+        "features": ["streaming", "multi_query", "mmr", "compression", "web_search_fallback"],
+        "llm_provider": LLM_PROVIDER,
+        "llm_model": OPENAI_MODEL if LLM_PROVIDER == "openai" else OLLAMA_MODEL,
+        "pinecone_index": PINECONE_INDEX,
+        "web_search_enabled": WEB_SEARCH_ENABLED
     }
 
 @app.post("/chat")
@@ -222,34 +391,65 @@ async def chat(request: ChatRequest):
 
         if request.stream:
             return StreamingResponse(
-                stream_response(qa_chain, request.query, session_id, request.retrieval_strategy),
+                stream_response(qa_chain, request.query, session_id, request.retrieval_strategy, request.enable_web_fallback),
                 media_type="text/event-stream"
             )
         else:
             result = qa_chain({"question": request.query})
+            answer = result["answer"]
+            web_search_used = False
+            cached_for_future = False
+            sources = []
+
+            # Check if we need web search fallback
+            if (WEB_SEARCH_ENABLED and
+                request.enable_web_fallback and
+                check_insufficient_info(answer)):
+
+                print(f"Insufficient info detected, performing web search for: {request.query}")
+                search_results = perform_web_search(request.query, WEB_SEARCH_MAX_RESULTS)
+
+                if search_results:
+                    # Ingest results into Pinecone for future queries
+                    web_docs = await ingest_search_results(request.query, search_results)
+                    cached_for_future = len(web_docs) > 0
+
+                    # Generate new answer with web context
+                    answer = await answer_with_web_context(request.query, web_docs, memory)
+                    web_search_used = True
+
+                    sources = [
+                        {
+                            "content": doc.page_content[:500],
+                            "metadata": doc.metadata,
+                        }
+                        for doc in web_docs
+                    ]
+            else:
+                sources = [
+                    {
+                        "content": doc.page_content[:500],
+                        "metadata": doc.metadata,
+                    }
+                    for doc in result.get("source_documents", [])
+                ]
 
             save_to_history(session_id, "user", request.query)
-            save_to_history(session_id, "assistant", result["answer"])
-
-            sources = [
-                {
-                    "content": doc.page_content[:500],
-                    "metadata": doc.metadata,
-                }
-                for doc in result.get("source_documents", [])
-            ]
+            save_to_history(session_id, "assistant", answer)
 
             return ChatResponse(
-                answer=result["answer"],
+                answer=answer,
                 sources=sources,
                 session_id=session_id,
-                strategy_used=request.retrieval_strategy
+                strategy_used=request.retrieval_strategy,
+                web_search_used=web_search_used,
+                cached_for_future=cached_for_future
             )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-async def stream_response(qa_chain, query: str, session_id: str, strategy: str) -> AsyncIterator[str]:
+async def stream_response(qa_chain, query: str, session_id: str, strategy: str, enable_web_fallback: bool = True) -> AsyncIterator[str]:
     try:
         callback = StreamingCallbackHandler()
 
@@ -261,22 +461,60 @@ async def stream_response(qa_chain, query: str, session_id: str, strategy: str) 
 
         full_answer = ""
         for token in callback.tokens:
-            full_answer += token
-            yield f"data: {json.dumps({'token': token, 'type': 'token'})}\n\n"
-            await asyncio.sleep(0.01)
+            if token:  # Skip empty tokens
+                full_answer += token
+                yield f"data: {json.dumps({'token': token, 'type': 'token'})}\n\n"
+                await asyncio.sleep(0.01)
+
+        web_search_used = False
+        cached_for_future = False
+        sources = []
+
+        # Check if we need web search fallback
+        if (WEB_SEARCH_ENABLED and
+            enable_web_fallback and
+            check_insufficient_info(full_answer)):
+
+            yield f"data: {json.dumps({'type': 'web_search_start', 'message': 'Searching the web for more information...'})}\n\n"
+
+            search_results = perform_web_search(query, WEB_SEARCH_MAX_RESULTS)
+
+            if search_results:
+                memory = get_memory(session_id)
+                web_docs = await ingest_search_results(query, search_results)
+                cached_for_future = len(web_docs) > 0
+
+                # Generate new answer with web context
+                web_answer = await answer_with_web_context(query, web_docs, memory)
+                web_search_used = True
+
+                # Stream the web-based answer
+                yield f"data: {json.dumps({'type': 'web_answer_start'})}\n\n"
+                for char in web_answer:
+                    yield f"data: {json.dumps({'token': char, 'type': 'token'})}\n\n"
+                    await asyncio.sleep(0.005)
+
+                full_answer = web_answer
+                sources = [
+                    {
+                        "content": doc.page_content[:500],
+                        "metadata": doc.metadata,
+                    }
+                    for doc in web_docs
+                ]
+        else:
+            sources = [
+                {
+                    "content": doc.page_content[:500],
+                    "metadata": doc.metadata,
+                }
+                for doc in result.get("source_documents", [])
+            ]
 
         save_to_history(session_id, "user", query)
         save_to_history(session_id, "assistant", full_answer)
 
-        sources = [
-            {
-                "content": doc.page_content[:500],
-                "metadata": doc.metadata,
-            }
-            for doc in result.get("source_documents", [])
-        ]
-
-        yield f"data: {json.dumps({'sources': sources, 'type': 'sources', 'strategy': strategy})}\n\n"
+        yield f"data: {json.dumps({'sources': sources, 'type': 'sources', 'strategy': strategy, 'web_search_used': web_search_used, 'cached_for_future': cached_for_future})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
     except Exception as e:
