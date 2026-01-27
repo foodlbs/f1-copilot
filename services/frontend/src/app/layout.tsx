@@ -2,8 +2,11 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'RAG Chatbot - Microservices',
-  description: 'Advanced RAG system with multiple retrieval strategies',
+  title: 'F1 Strategy Assistant | AI Race Intelligence',
+  description: 'Your AI-powered race engineer for Formula 1 strategy analysis, pit stop optimization, and historical race data insights.',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({
@@ -13,7 +16,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className="antialiased">{children}</body>
     </html>
   )
 }
