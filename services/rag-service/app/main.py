@@ -10,7 +10,7 @@ import asyncio
 
 # LangChain imports
 from langchain_community.llms import Ollama
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
@@ -36,6 +36,7 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX = os.getenv("PINECONE_INDEX")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # ==================== LangChain Setup ====================
 llm = Ollama(
@@ -50,9 +51,9 @@ llm_no_stream = Ollama(
     temperature=0.3
 )
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-    model_kwargs={'device': 'cpu'}
+embeddings = OpenAIEmbeddings(
+    model="text-embedding-3-large",
+    openai_api_key=OPENAI_API_KEY
 )
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
