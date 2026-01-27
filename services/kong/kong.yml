@@ -26,43 +26,21 @@ services:
     host: rag-service-upstream
     port: 8001
     protocol: http
-    connect_timeout: 60000
-    write_timeout: 60000
-    read_timeout: 60000
+    connect_timeout: 120000
+    write_timeout: 120000
+    read_timeout: 120000
     retries: 3
 
     routes:
-      - name: chat-route
+      - name: api-route
         paths:
-          - /api/chat
-        methods:
-          - POST
-          - OPTIONS
-        strip_path: false
-
-      - name: test-strategies-route
-        paths:
-          - /api/test-strategies
-        methods:
-          - POST
-          - OPTIONS
-        strip_path: false
-
-      - name: session-route
-        paths:
-          - /api/session
-        methods:
-          - DELETE
-          - OPTIONS
-        strip_path: false
-
-      - name: strategies-route
-        paths:
-          - /api/retrieval-strategies
+          - /api
         methods:
           - GET
+          - POST
+          - DELETE
           - OPTIONS
-        strip_path: false
+        strip_path: true
 
     plugins:
       - name: rate-limiting
