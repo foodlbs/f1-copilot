@@ -1,0 +1,11 @@
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+langchain==0.2.16
+langchain-community==0.2.16
+langchain-pinecone==0.1.3
+langchain-openai==0.1.25
+pinecone-client>=5.0.0,<6.0.0
+redis==5.0.1
+pydantic>=2.5.3
+openai>=1.0.0
+ddgs>=8.0.0
